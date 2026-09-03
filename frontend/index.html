@@ -1,0 +1,91 @@
+<!-- <div id="app">
+    <input type="text" placeholder="请输入你的问题">
+    输入框 —— 绑到数据 question
+    按钮   —— 点击触发方法 ask()
+    显示区 —— {{ answer }}   ← 数据一变这里自动更新
+</div>
+<script src="Vue 的 CDN 地址"></script>
+<script>
+    Vue.createApp({
+        data() { return { question: "", answer: "" } },   // 数据住这里
+        methods: { ask() { /* fetch /ask，带 headers，拿到回答塞进 this.answer */ } }
+    }).mount("#app")    // 把上面这套东西接管 id=app 的区域
+</script> -->
+
+<!doctype html>
+<html lang="zh">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>出版社智能体问答</title>
+		<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+	</head>
+	<body>
+		<div id="app">
+			<input type="text" 
+				v-model="question"
+				placeholder="请输入你的问题："
+			/>
+			
+			<button @click="ask">点击发送</button>
+			<p><strong>答案会显示在这里</strong>{{answer}}</p>
+
+		</div>
+	</body>
+
+	<script>
+		const {createApp}=Vue;
+
+		createApp({
+			data(){
+				return{
+					question:"",
+					answer:"",
+				};
+			},
+			methods:{
+				async ask(){
+					if(!this.question.trim()){
+						alert("请输入问题！");
+						return;
+					}
+
+					const url="/ask";
+					const headers={
+						"Authorization":"123456",
+						"Content-Type":"application/json",
+					}
+					const body={
+						Question:this.question,
+					}
+
+					try {
+						const response=await fetch(url,{
+							method:"POST",
+							headers:headers,
+							body:JSON.stringify(body),
+
+						})
+
+						if(!response.ok){
+							const error_data=await response.json();
+							throw new Error(error_data.detail||"请求失败");
+						}
+						
+						const data=await response.json();
+						this.answer=data["智能体回答："]||JSON.stringify(data)
+
+
+					} catch (error) {
+						console.error("请求出错",error);
+						this.answer=("出错了："+error.message);
+					}
+
+				},
+			},
+
+
+		}).mount("#app")
+
+	</script>
+</html>
