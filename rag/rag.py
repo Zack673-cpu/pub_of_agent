@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import requests
 import json
 import rag.llm as llm
+import time
 #模块启动
 load_dotenv() 
 
@@ -78,15 +79,34 @@ def get_embedding(text: str) -> list[float]:
         "model": "text-embedding-v4",       # ← 就是这一行决定调哪个模型
         "input": {"texts": [text]}           # 待向量化的文本，注意 texts 是列表
     }
-    result=requests.post(url, headers=headers, json=body)
-    result=result.json()
-    # key 从环境变量读：os.getenv("DASHSCOPE_API_KEY")——key 绝不写死在代码里
-    # print(type(result.json()),result.json())
-    # dict{"output":dict{"embeddings":list[(这个list对应传的第几块语料){"embedding":list[float(这个才是向量)], ] , }  ,}
-    vector=result["output"]["embeddings"][0]["embedding"]
-    # print(len(vector))
-    return vector
 
+    max_retries = 3
+    for attempt in range(0,max_retries):
+        try:    
+            result=requests.post(url, headers=headers, json=body,timeout=30)
+            result.raise_for_status()
+            data=result.json()
+            # key 从环境变量读：os.getenv("DASHSCOPE_API_KEY")——key 绝不写死在代码里
+            # print(type(result.json()),result.json())
+            # dict{"output":dict{"embeddings":list[(这个list对应传的第几块语料){"embedding":list[float(这个才是向量)], ] , }  ,}
+            vector=data["output"]["embeddings"][0]["embedding"]
+            # print(len(vector))
+            return vector
+        except (requests.Timeout, requests.ConnectionError) as e:
+            # 网络错误：重试
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            raise RuntimeError(f"   Embedding API 网络错误（重试{max_retries}次）：{e}")
+        except requests.HTTPError as e:
+            # HTTP 错误：5xx 重试，4xx 不重试
+            if e.response.status_code >= 500 and attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            raise RuntimeError(f"   Embedding API 返回错误：{e}")
+        except (KeyError, ValueError) as e:
+            # 解析失败：不重试
+            raise RuntimeError(f"   Embedding API 响应解析失败：{e}")
 
 
 

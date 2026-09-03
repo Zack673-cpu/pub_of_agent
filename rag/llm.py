@@ -1,5 +1,6 @@
 
 import os
+import time
 import requests
 from dotenv import load_dotenv
 load_dotenv() 
@@ -31,12 +32,25 @@ def LLM(question,knowledge:list,history:list) -> str :
 
     }
 
-    request=requests.post(url,headers=headers,json=body)
-    request=request.json()
-    return request["choices"][0]["message"]["content"]
+    max_retries = 3
+    for attempt in range(0,max_retries):
+        try:
 
+            request=requests.post(url,headers=headers,json=body, timeout=30)
+            request.raise_for_status()
+            data=request.json()
+            return data["choices"][0]["message"]["content"]
 
+        except(requests.Timeout,requests.ConnectionError) as e:
+            if attempt<max_retries-1:
+                time.sleep(2**attempt)
+                continue
+            raise RuntimeError(f"   网络出错（重试{max_retries}次）：{e}")
 
-
-
-
+        except requests.HTTPError as e :
+            if e.response.status_code >= 500 and attempt<max_retries-1:
+                time.sleep(2**attempt)
+                continue
+            raise RuntimeError(f"   API 返回错误：{e}")
+        except (KeyError,ValueError) as e:
+            raise RuntimeError(f"   API 响应解析失败：{e}")
