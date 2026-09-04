@@ -11,9 +11,9 @@ import time
 #模块启动
 load_dotenv() 
 
-doc_path=Path(r"rag\corpus\example-note.md") #原始语料地址
+doc_path=Path(__file__).parent/"corpus"/"example-note.md" #原始语料地址
 
-restore_path=Path(r"rag\vector_store.json")  #语料和向量存储地址
+restore_path=Path(__file__).parent/"vector_store.json"  #语料和向量存储地址
 
 
 

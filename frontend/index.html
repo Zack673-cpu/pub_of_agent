@@ -30,6 +30,17 @@
 			<button @click="ask">点击发送</button>
 			<p><strong>答案会显示在这里</strong>{{answer}}</p>
 
+			<hr />
+			<h3>生成初稿</h3>
+			<!-- 输入题目生成大纲 -->
+			<input v-model="topic" placeholder="输入教材题目">
+			<button @click="getOutline">生成大纲</button>
+			<pre>{{outline}}</pre>
+			<!-- 输入选定节，生成初稿 -->
+			<input v-model="section" placeholder="输入要写的一节">
+			<button @click="getDraft">生成初稿</button>
+			<pre>{{draft}}</pre>
+
 		</div>
 	</body>
 
@@ -41,6 +52,10 @@
 				return{
 					question:"",
 					answer:"",
+					topic:"",
+					outline:"",
+					section:"",
+					draft:""
 				};
 			},
 			methods:{
@@ -78,9 +93,78 @@
 
 					} catch (error) {
 						console.error("请求出错",error);
-						this.answer=("出错了");
+						this.answer="出错了";
 					}
 
+				},
+				async getOutline(){
+					if(!this.topic.trim()){
+						alert("请输入题目！")
+						return;
+					}
+
+					const url="/outline";
+					const headers={
+						"Authorization":"123456",
+						"Content-Type":"application/json",
+					}
+					const body={
+						Topic:this.topic,
+					}
+					try {
+						const response=await fetch(url,{
+							method: "POST",
+							headers:headers,
+							body:JSON.stringify(body)
+						})
+
+						if (!response.ok){
+							const error_data=await response.json();
+							throw new Error(error_data.detail||"	请求出错！")
+						}
+
+						const data=await response.json();
+						this.outline=data["大纲："]||JSON.stringify(data);
+
+					} catch (error) {
+						console.error("请求出错",error);
+						this.outline="出错了";
+					}	
+
+				},
+				async getDraft(){
+					if (!this.section.trim()){
+						alert("请输入要选定的那节");
+						return ;
+					}
+
+					const url="/generate";
+					const headers={
+						"Authorization":"123456",
+						"Content-Type":"application/json",
+					}
+					const body={
+						Section:this.section
+					}
+
+					try {
+						const response=await fetch(url,{
+							method:"POST",
+							headers:headers,
+							body:JSON.stringify(body)
+						})
+
+						if (!response.ok){
+							const error_data=await response.json();
+							throw new Error(error_data.detail||"	请求出错！");
+						}
+						const data =await response.json();
+						this.draft=data["初稿："]||JSON.stringify(data)
+
+					} catch (error) {
+						console.error("	出错了",error)
+						this.draft="出错了";
+					}
 				},
 			},
 

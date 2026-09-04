@@ -3,7 +3,24 @@ import json
 
 def outline_agent(topic: str) -> str:
     """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
-    prompt=f"请为一节教材《{topic}》写大纲，注意简洁明了，只写最主要的概念。"
+    prompt=f"""请为教材《{topic}》写目录，注意简洁明了，只写最主要的概念。不要在目录前后输出任何无关的内容。格式为（ xxx 表示占位符，实际内容由你填充，结构也可自行参照规律按需增加或减少）：
+        第1章 xxx
+            1.1 xxx
+                1.1.1 xxx
+                1.1.2 xxx
+            1.2 xxx
+                1.2.1 xxx
+                1.2.2 xxx
+        第2章 xxx
+            2.1 xxx
+                2.1.1 xxx
+                2.1.2 xxx
+            2.2 xxx 
+                2.2.1 xxx
+                2.2.2 xxx
+        第3章 xxx
+            
+    """
     return llm.LLM(prompt,"",[])
 
 
@@ -57,7 +74,13 @@ def check_duplicate(draft: str, corpus: str) -> float:
     re=found/len(draft_chunks)
     return re
 
-def Pipeline(topic: str) -> str:
+
+def generate_outline(topic:str)->str:
+    outline=outline_agent(topic)
+    return outline
+
+
+def generate_section(section:str) -> str:
     """串联以上五步，管重写循环（审校有问题→降重→再审，最多 N 轮）"""
       
     with open(rag.restore_path,"r",encoding="utf-8") as f:
@@ -68,13 +91,13 @@ def Pipeline(topic: str) -> str:
     for i in text_vectors:
         corpus+=i["text"]
     N=5
-    outline=outline_agent(topic)
-    o_vectors=rag.get_embedding(outline)
+    
+    o_vectors=rag.get_embedding(section)
     
     knowledge=rag.retrieve(o_vectors,text_vectors)
     #[(分数,文本)]
     
-    draft=writer_agent(outline,knowledge)
+    draft=writer_agent(section,knowledge)
 
     for i in range(0,N):
 
@@ -92,5 +115,6 @@ def Pipeline(topic: str) -> str:
 
 
 if __name__=="__main__":
-    draft=Pipeline("线性代数在监督学习中的作用")
-    print(draft)
+    outline=generate_outline("线性代数")
+    draft=generate_section("线性代数在监督学习中的作用")
+    print(outline,draft)
