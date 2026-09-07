@@ -1,12 +1,75 @@
 #模块启动，数据库动作
 
 
+
+from pathlib import Path
+import os
 import pymysql
+from dotenv import load_dotenv
+import logging
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from datetime import datetime,timezone
+import sys
+from enum import Enum
+from sqlalchemy import String, Text, ForeignKey, Enum as SAEnum
+
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        logging.StreamHandler(),           # 终端
+        logging.FileHandler(Path(__file__).parent/"app.log", encoding="utf-8"),  # 文件
+    ]
+)
+logger = logging.getLogger(__name__)
+load_dotenv()
+
+
+password=os.getenv("DB_PASSWORD")
+if password is None:
+    logger.error("    DB_PASSWORD 为空，检查 .env 文件")
+    sys.exit()
+
+
+class Base(DeclarativeBase):
+    pass
+
+class StatusEnum (Enum):
+    drafting="drafting"
+    submitted="submitted"
+
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True,nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(128))
+    role: Mapped[str] = mapped_column(String(20), default="editor")
+    # relationship: 一对多，一个用户有多本书
+    books: Mapped[list["Book"]] = relationship(back_populates="user")
+
+
+class Book(Base):
+    __tablename__ = "books"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    requirement:Mapped[str]= mapped_column(Text)
+    status:Mapped[StatusEnum]=mapped_column(SAEnum(StatusEnum,name="status_enum"),nullable=False)
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),onupdate=lambda:datetime.now(timezone.utc),nullable=False)
+    user: Mapped["User"] = relationship(back_populates="books")
+
+
+
 
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': '123456',  # 若无密码则留空 ''
+    'password': password,  # 若无密码则留空 ''
     'port': 3306,
     'charset': 'utf8mb4'
 }
