@@ -1,7 +1,5 @@
 #模块启动，数据库动作
 
-
-
 from pathlib import Path
 import os
 import pymysql
@@ -36,15 +34,40 @@ if password is None:
 class Base(DeclarativeBase):
     pass
 
-class StatusEnum (Enum):
+class BookStatusEnum (Enum):
     drafting="drafting"
     submitted="submitted"
 
 
+class SectionStatusEnum(Enum):
+    empty="empty"
+    generated="generated"
+    failed="failed"
+# 节状态
+
+class EditGranularityEnum(Enum):
+    outline="outline"
+    passage="passage"
+    section="section"
+# outline=问题→大纲, passage=问题→小节, section=AI初稿→人工定稿
+
+
+class EditSourceEnum(Enum):
+    user="user"
+    ai="ai"
+
+class TasksKindEnum(Enum):
+    outline="outline"
+    book="book"
+    section="section"
+    rewrite="rewrite"
+    outline_revise="outline_revise"
+    intent="intent"
+
 
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     username: Mapped[str] = mapped_column(String(50), unique=True,nullable=False)
     password_hash: Mapped[str] = mapped_column(String(128))
     role: Mapped[str] = mapped_column(String(20), default="editor")
@@ -54,14 +77,107 @@ class User(Base):
 
 class Book(Base):
     __tablename__ = "books"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(200))
     requirement:Mapped[str]= mapped_column(Text)
-    status:Mapped[StatusEnum]=mapped_column(SAEnum(StatusEnum,name="status_enum"),nullable=False)
+    status:Mapped[BookStatusEnum]=mapped_column(SAEnum(BookStatusEnum,name="books_status"),nullable=False)
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
     updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),onupdate=lambda:datetime.now(timezone.utc),nullable=False)
     user: Mapped["User"] = relationship(back_populates="books")
+
+class OutlineVersion (Base):
+    __tablename__= "outline_versions"
+    id: Mapped[int] = mapped_column(primary_key=True,autoincrement=True)
+    book_id: Mapped[int]=mapped_column(ForeignKey("books.id"))
+    version_no :Mapped[int]=mapped_column()
+    tree_json:Mapped[str]=mapped_column(Text)
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+    
+
+
+class OutlineStaging(Base):
+    __tablename__="outline_staging"
+    book_id :Mapped[int]=mapped_column(ForeignKey("books.id"),primary_key=True)
+    tree_json:Mapped[str]=mapped_column(Text)
+    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+
+
+class Section(Base):
+    __tablename__="sections"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    book_id:Mapped[int]=mapped_column(ForeignKey("books.id"),nullable=False)
+    node_key :Mapped[str]=mapped_column(String(200),nullable=False)
+    title:Mapped[str]=mapped_column(String(200))
+    order_no:Mapped[int]=mapped_column()
+    parent_key:Mapped[str]=mapped_column(String(200),nullable=True)
+    status:Mapped[SectionStatusEnum]=mapped_column(SAEnum(SectionStatusEnum,name="sections_status"),nullable=False)
+    discarded:Mapped[bool]=mapped_column(default=False)
+
+
+class DraftVersion(Base):
+    __tablename__="draft_versions"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    book_id:Mapped[int]=mapped_column(ForeignKey("books.id"),nullable=False)
+    section_id:Mapped[int]=mapped_column(ForeignKey("sections.id"),nullable=False)
+    version_no:Mapped[int]=mapped_column()
+    content:Mapped[str]=mapped_column(Text)
+    diff_ops_json:Mapped[str]=mapped_column(Text,nullable=True)
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+
+
+
+class Staging(Base):
+    __tablename__="staging"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    section_id:Mapped[int]=mapped_column(ForeignKey("sections.id"),nullable=False)
+    content:Mapped[str]=mapped_column(Text)
+    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+
+
+
+class EditPair (Base):
+    __tablename__="edit_pairs"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+
+    book_id:Mapped [int]=mapped_column(ForeignKey("books.id")) 
+    section_id:Mapped[int|None]=mapped_column(ForeignKey("sections.id")) 
+    granularity:Mapped[EditGranularityEnum]=mapped_column(SAEnum(EditGranularityEnum,name="edit_pairs_granularity"))
+    old_text:Mapped[str]=mapped_column(Text)
+    new_text:Mapped[str]=mapped_column(Text)
+    context_before:Mapped[str]=mapped_column(Text,nullable=True)
+    context_after:Mapped[str]=mapped_column(Text,nullable=True)	
+    diff_ops_json:Mapped[str]=mapped_column(Text)
+    source:Mapped[EditSourceEnum]=mapped_column(SAEnum(EditSourceEnum,name="edit_pairs_source"))
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+
+
+
+class RewriteRequest (Base):
+    __tablename__="rewrite_requests"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    book_id:Mapped [int]=mapped_column(ForeignKey("books.id")) 
+    section_id:Mapped[int]=mapped_column(ForeignKey("sections.id")) 
+    start_offset:Mapped[int]=mapped_column()
+    end_offset:Mapped[int]=mapped_column()
+    instruction:Mapped[str]=mapped_column(Text)
+    old_passage:Mapped[str]=mapped_column(Text)
+    new_passage:Mapped[str]=mapped_column(Text)
+
+
+class Task(Base):
+    __tablename__="tasks"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    book_id:Mapped [int]=mapped_column(ForeignKey("books.id")) 
+    kind:Mapped[TasksKindEnum]=mapped_column(SAEnum(TasksKindEnum,name="tasks_kind"))
+    status:Mapped[str]=mapped_column(Text)
+    progress_json:Mapped[str]=mapped_column(Text)
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+
+
+
+
+
 
 
 
