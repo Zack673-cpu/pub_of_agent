@@ -95,7 +95,7 @@ class Section(Base):
     parent_key:Mapped[str]=mapped_column(String(200),nullable=True)
     status:Mapped[SectionStatusEnum]=mapped_column(SAEnum(SectionStatusEnum,name="sections_status"),nullable=False)
     discarded:Mapped[bool]=mapped_column(default=False)
-    book:Mapped["Book"]=relationship(back_populates="sections")
+    book:Mapped[Book]=relationship(back_populates="sections")
     draft_versions:Mapped[list["DraftVersion"]]=relationship(back_populates="section",cascade="all,delete-orphan")
     staging:Mapped["Staging"]=relationship(back_populates="section",cascade="all,delete-orphan")
     edit_pairs :Mapped[list["EditPair"]]=relationship(back_populates="section",cascade="all,delete-orphan")
@@ -113,8 +113,8 @@ class DraftVersion(Base):
     content:Mapped[str]=mapped_column(Text)
     diff_ops_json:Mapped[str]=mapped_column(Text,nullable=True)
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
-    book:Mapped["Book"]=relationship(back_populates="draft_versions")
-    section:Mapped["Section"]=relationship(back_populates="draft_versions")
+    book:Mapped[Book]=relationship(back_populates="draft_versions")
+    section:Mapped[Section]=relationship(back_populates="draft_versions")
 
 class Staging(Base):
     __tablename__="staging"
@@ -122,7 +122,7 @@ class Staging(Base):
     section_id:Mapped[int]=mapped_column(ForeignKey("sections.id"),nullable=False)
     content:Mapped[str]=mapped_column(Text)
     updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
-    section:Mapped["Section"]=relationship(back_populates="staging")
+    section:Mapped[Section]=relationship(back_populates="staging")
 
 
 class EditPair (Base):
@@ -139,8 +139,8 @@ class EditPair (Base):
     diff_ops_json:Mapped[str|None]=mapped_column(Text)
     source:Mapped[EditSourceEnum]=mapped_column(SAEnum(EditSourceEnum,name="edit_pairs_source"))
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
-    book:Mapped["Book"]=relationship(back_populates="edit_pairs")
-    section:Mapped["Section"|None]=relationship(back_populates="edit_pairs")
+    book:Mapped[Book]=relationship(back_populates="edit_pairs")
+    section:Mapped[Section|None]=relationship(back_populates="edit_pairs")
 
 class RewriteRequest (Base):
     __tablename__="rewrite_requests"
@@ -152,8 +152,8 @@ class RewriteRequest (Base):
     instruction:Mapped[str]=mapped_column(Text)
     old_passage:Mapped[str]=mapped_column(Text)
     new_passage:Mapped[str]=mapped_column(Text)
-    book:Mapped["Book"]=relationship(back_populates="rewrite_requests")
-    section:Mapped["Section"]=relationship(back_populates="rewrite_requests")
+    book:Mapped[Book]=relationship(back_populates="rewrite_requests")
+    section:Mapped[Section]=relationship(back_populates="rewrite_requests")
 
 class Task(Base):
     __tablename__="tasks"
@@ -165,9 +165,9 @@ class Task(Base):
     status:Mapped[str]=mapped_column(Text)
     progress_json:Mapped[str|None]=mapped_column(Text)
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
-    book:Mapped["Book"]=relationship(back_populates="tasks")
-    section:Mapped["Section"|None]=relationship(back_populates="tasks")
-    outline_version:Mapped["OutlineVersion"|None]=relationship(back_populates="tasks")
+    book:Mapped[Book]=relationship(back_populates="tasks")
+    section:Mapped[Section|None]=relationship(back_populates="tasks")
+    outline_version:Mapped[OutlineVersion|None]=relationship(back_populates="tasks")
 
 
 

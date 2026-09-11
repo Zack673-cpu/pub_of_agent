@@ -8,7 +8,7 @@ import pymysql
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': password,  # 若无密码则留空 ''
+    'password': 123456,  # 若无密码则留空 ''
     'port': 3306,
     'charset': 'utf8mb4'
 }
