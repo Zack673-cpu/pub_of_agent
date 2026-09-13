@@ -37,6 +37,11 @@ class TasksKindEnum(Enum):
     outline_revise="outline_revise"
     intent="intent"
 
+class TasksStatusEnum(Enum):
+    pending="pending"
+    running="running"
+    done="done"
+    failed="failed"
 
 class User(Base):
     __tablename__ = "users"
@@ -46,7 +51,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="editor")
     # relationship: 一对多，一个用户有多本书
     books: Mapped[list["Book"]] = relationship(back_populates="user",cascade="all,delete-orphan")
-
+    refresh_tokens:Mapped[list["RefreshToken"]]=relationship(back_populates="user",cascade="all,delete-orphan")
 
 class Book(Base):
     __tablename__ = "books"
@@ -81,7 +86,7 @@ class OutlineStaging(Base):
     __tablename__="outline_staging"
     book_id :Mapped[int]=mapped_column(ForeignKey("books.id"),primary_key=True)
     tree_json:Mapped[str]=mapped_column(Text)
-    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),onupdate=lambda:datetime.now(timezone.utc),nullable=False)
     book:Mapped["Book"]=relationship(back_populates="outline_staging")
 
 class Section(Base):
@@ -121,7 +126,7 @@ class Staging(Base):
     id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
     section_id:Mapped[int]=mapped_column(ForeignKey("sections.id"),nullable=False)
     content:Mapped[str]=mapped_column(Text)
-    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+    updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),onupdate=lambda:datetime.now(timezone.utc),nullable=False)
     section:Mapped[Section]=relationship(back_populates="staging")
 
 
@@ -162,7 +167,7 @@ class Task(Base):
     section_id:Mapped[int|None]=mapped_column(ForeignKey("sections.id"),nullable=True)
     outline_version_id:Mapped[int|None]=mapped_column(ForeignKey("outline_versions.id"),nullable=True)
     kind:Mapped[TasksKindEnum]=mapped_column(SAEnum(TasksKindEnum,name="tasks_kind"))
-    status:Mapped[str]=mapped_column(Text)
+    status:Mapped[TasksStatusEnum]=mapped_column(SAEnum(TasksStatusEnum,name="tasks_status"))
     progress_json:Mapped[str|None]=mapped_column(Text)
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
     book:Mapped[Book]=relationship(back_populates="tasks")
@@ -170,9 +175,17 @@ class Task(Base):
     outline_version:Mapped[OutlineVersion|None]=relationship(back_populates="tasks")
 
 
-
-
-
+class RefreshToken(Base):
+    __tablename__="refresh_tokens"
+    id:Mapped[int]=mapped_column(primary_key=True,autoincrement=True)
+    user_id:Mapped[int]=mapped_column(ForeignKey("users.id"))    
+    token:Mapped[str]=mapped_column(String(64))     
+    expires_at:Mapped[datetime]=mapped_column(nullable=False)
+    revoked:Mapped[bool]=mapped_column(default=False)     
+    created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
+    user:Mapped["User"]=relationship(back_populates="refresh_tokens")
+    #   关系：多个 token 属于一个用户（多对一）
+    __table_args__=(UniqueConstraint('token',name='uq_token'),)
 
 
 
