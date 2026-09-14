@@ -1,15 +1,22 @@
-from requests import status_codes
 import rag.db as db
 import rag.rag as rag
-from fastapi import FastAPI
+from fastapi import FastAPI,Depends,Header,HTTPException
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi import Header,HTTPException
 import rag.pipeline as pipeline
 import logging
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from backend.database import get_session, SessionLocal
+from sqlalchemy.orm import Session
+from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token
+from backend.models import RefreshToken, User
+from datetime import datetime,timezone,timedelta
+
+
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -49,6 +56,10 @@ class OUTLINE (BaseModel):
 
 class SECTION(BaseModel):
     Section:str
+
+class RefreshBody(BaseModel):
+    refresh_token: str
+
 
 @app.post("/ask")
 async def answer_agent(question:QUESTION,authorization: str=Header(default=None)):
@@ -99,3 +110,49 @@ async def generate_agent(section:SECTION,authorization: str=Header(default=None)
         raise HTTPException(status_code=500,detail=str(e))
 
     return {"初稿：":draft}
+
+
+@app.post("/refresh")
+async def refresh_token(body: RefreshBody, db: Session = Depends(get_session)):
+    
+    #db：参数名。
+    #Session：类型注解，表示你期望 db 是 Session 类型。
+    #Depends(get_session)：告诉 FastAPI，这个参数不要从请求里解析，而是调用 get_session 来获取。
+    #FastAPI 会调用 get_session，把结果注入给 db。
+    now=datetime.now(timezone.utc)
+    plain=body.refresh_token
+    token_hash = hash_refresh_token(plain) 
+    row = db.query(RefreshToken).filter(RefreshToken.token == token_hash).first()
+        #针对某个表查询            筛选条件                            取第一行结果
+
+
+    if row is None:
+        raise HTTPException(status_code=401,detail="    refresh token 查询不到")
+
+    expires_at=row.expires_at
+    expires_at=expires_at.replace(tzinfo=timezone.utc)
+    
+    if row.revoked is True:
+        raise HTTPException(status_code=401,detail="    refresh token 已吊销")
+    elif expires_at< now:
+        raise HTTPException(status_code=401,detail="    refresh token 已过期")
+    else:
+        try:
+            row.revoked=True
+            refresh_plain=create_refresh_token_plain()
+            #新明文
+            refresh_token_hashed=hash_refresh_token(refresh_plain)
+            #新哈希
+            new_row=RefreshToken(
+                user_id=row.user_id,
+                token=refresh_token_hashed,
+                expires_at=now+timedelta(days=7),
+                revoked=False,
+            )
+            new_access=create_access_token(row.user_id)
+            db.add(new_row)
+            db.commit()
+        except Exception as e:
+            raise HTTPException(status_code=500,detail=str(e))
+        
+        return {"access_token":new_access,"refresh_token":refresh_plain}

@@ -3,7 +3,8 @@ import jwt
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-
+import secrets   # 生成加密安全随机串
+import hashlib   # 算 SHA-256
 load_dotenv()
 JwtSecret=os.getenv("JWT_SECRET")
 
@@ -64,9 +65,21 @@ def verify_access_token(token: str) -> int:
         raise ValueError(f" JWT鉴权失败，原因：{e}")
 
 
+# ---- 3. Refresh token（明文 + 哈希）----
+
+def create_refresh_token_plain() -> str:
+    """生成一张新的 refresh token 明文串，返回给前端用。
+    """
+    refresh_token=secrets.token_urlsafe(32)
+    return refresh_token
 
 
 
+def hash_refresh_token(plain: str) -> str:
+    """输入明文 refresh token → 输出 64 位十六进制哈希。
+    """
+    token_hashed=hashlib.sha256(plain.encode("utf-8")).hexdigest()
+    #hexdigest是哈希对象的方法，返回 十六进制字符串，32字节*2位/字节=64位二进制
 
-
+    return token_hashed
     

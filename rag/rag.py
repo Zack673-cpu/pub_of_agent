@@ -36,19 +36,19 @@ def to_chunks(text,size=200,overlap=50):
 
 def cos(a: list[float], b: list[float]) -> float:
     # 你已有 cos 的数学不用变，但输入形状从 dict 变成 list[float]
-    fenmu=1;
-    z_a=0;z_b=0;
+    fenmu=1
+    z_a=0;z_b=0
     for i in a:
-        z_a+=i*i;
+        z_a+=i*i
     z_a=math.sqrt(z_a)
     for j in b:
-        z_b+=j*j;
+        z_b+=j*j
     z_b=math.sqrt(z_b)
-    fenmu=z_a*z_b;
+    fenmu=z_a*z_b
     if fenmu ==0:
-        return 0;
+        return 0
 
-    fenzi=0;
+    fenzi=0
     for i in range(0,len(a)):
         if i <len(b): fenzi+=a[i]*b[i]
 
