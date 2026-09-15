@@ -3,8 +3,8 @@ import jwt
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-import secrets   # 生成加密安全随机串
-import hashlib   # 算 SHA-256
+import secrets   # 生成加密安全随机串,签名用
+import hashlib   # 算 SHA-256 存库里
 load_dotenv()
 JwtSecret=os.getenv("JWT_SECRET")
 
