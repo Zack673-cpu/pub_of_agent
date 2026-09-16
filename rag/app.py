@@ -14,7 +14,7 @@ from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access
 from backend.models import RefreshToken, User
 from datetime import datetime,timezone,timedelta
 from sqlalchemy.exc import IntegrityError
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 
@@ -39,6 +39,16 @@ if not rag.doc_path.exists():
 
 #模块启动
 app=FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,  # 因为你会带 cookie/session 才开，JWT 走 header 时可考虑
+    allow_methods=["*"],     # 允许的 HTTP 方法
+    allow_headers=["*"],     # 允许的请求头（你的自定义 Authorization 头要靠它放行）
+)
+
+
 
 TOKEN ="123456"
 

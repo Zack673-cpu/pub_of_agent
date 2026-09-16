@@ -1,24 +1,34 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from "pinia"
+import { ref } from "vue"
 
-export const useAuthStore = defineStore('auth', () => {
-    // 三个状态，初始值都是空
-    const accessToken = ref('')
-    const refreshToken = ref('')
-    const username = ref('')
-    // 三个 action，只给签名和职责：
-    // setToken  —— 登录/刷新成功后把新拿到的 token 存进来（参数就是后端返回的那两个字段）
-    function setToken(newAccess: string, newRefresh: string) { 
+
+
+
+export const useAuthStore= defineStore('auth',()=>{
+    const accessToken=ref(localStorage.getItem('ACCESS_KEY')?? '')
+    const refreshToken=ref(localStorage.getItem('REFRESH_KEY')?? '')
+    const username=ref(localStorage.getItem('UNAME_KEY')?? '')
+    function setUsername(name: string) {
+        username.value = name
+        localStorage.setItem('UNAME_KEY',name)
+    }   
+    function setToken(newAccess:string,newRefresh:string){
         accessToken.value=newAccess
         refreshToken.value=newRefresh
+        localStorage.setItem('ACCESS_KEY',newAccess)
+        localStorage.setItem('REFRESH_KEY',newRefresh)
     }
 
-    // clearToken —— 退出登录时清空三样
-    function clearToken() { 
-        accessToken.value = ''
-        refreshToken.value = ''
-        username.value = ''
+    function clearToken(){
+        accessToken.value=''
+        refreshToken.value=''
+        username.value=''
+        //清理内存和磁盘的登录状态
+        localStorage.removeItem('ACCESS_KEY')
+        localStorage.removeItem('REFRESH_KEY')
+        localStorage.removeItem('UNAME_KEY')
+
     }
 
-    return { accessToken, refreshToken, username, setToken, clearToken }
+    return {accessToken,refreshToken,username,setToken,clearToken,setUsername}
 })

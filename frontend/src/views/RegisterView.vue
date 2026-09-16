@@ -2,7 +2,7 @@
     <el-form
         :model="form"
         label-width="80px"
-        @submit.prevent="handleLogin"
+        @submit.prevent="handleRegister"
     >
         <el-form-item label="用户名">
             <el-input
@@ -27,12 +27,11 @@
         </el-form-item>
 
         <el-form-item>
-            <el-button type="primary" @click="handleLogin">登录</el-button>
+            <el-button type="primary" @click="handleRegister">注册</el-button>
         </el-form-item>
         <el-form-item>
-            <el-button type="primary" @click="goRegist">去注册</el-button>
+            <el-button type="primary" @click="goLogin">返回登录</el-button>
         </el-form-item>
-        
             <!-- type="primary"表示这个按钮是主要按钮 -->
     </el-form>
 
@@ -49,11 +48,11 @@
 
     const router=useRouter()
     const form =ref({'username':'','password':''})
-    const handleLogin = async ()=>{
+    const handleRegister = async ()=>{
         
         const store=useAuthStore()
         try{
-            const response=await request.post('/login',form.value)
+            const response=await request.post('/register',form.value)
             const access_token=response.data.access_token
             const refresh_token=response.data.refresh_token
             store.setToken(access_token,refresh_token)
@@ -79,8 +78,8 @@
         
 
     }
-    const goRegist=()=>{
-        router.push({name:'register'})
+    const goLogin=()=>{
+        router.push({name:'login'})
     }
 
 </script>
