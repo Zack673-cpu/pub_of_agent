@@ -3,12 +3,22 @@ import LoginView from '../views/LoginView.vue'
 import { useAuthStore } from '@/stores/auth.ts'
 import Writing from '../views/Writing.vue'
 import RegisterView from '@/views/RegisterView.vue'
+import MainLayout from '@/layouts/MainLayout.vue'
+import History from '@/views/History.vue'
 const router = createRouter({
 	history: createWebHistory(import.meta.env.BASE_URL),
 	routes: [
 		{ path: '/login', component: LoginView ,name:'login'},
-		{ path: '/writing', component: Writing , meta:{requiresAuth:true}},
 		{ path:	'/register',component: RegisterView,name:'register'},
+		{
+			path: '/',
+			component: MainLayout,
+			meta:{requiresAuth:true},
+			children:[
+				{ path: 'writing', component: Writing },
+				{ path: 'history', component: History },
+			]
+		}
 	],
 })
 
