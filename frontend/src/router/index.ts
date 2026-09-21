@@ -12,6 +12,7 @@ const router = createRouter({
 		{ path:	'/register',component: RegisterView,name:'register'},
 		{
 			path: '/',
+			redirect:'/writing',
 			component: MainLayout,
 			meta:{requiresAuth:true},
 			children:[
