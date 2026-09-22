@@ -57,11 +57,14 @@
 <style scoped>
 .layout{
     height: 100vh;
+    background: var(--color-bg);
 }
 .app-sidebar{
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--el-border-color-light);
+    border-left: 1px solid var(--el-border-color-light);
+    background: var(--color-surface);
     width:clamp(200px, 18vw, 280px)
 }
 .brand{
@@ -80,13 +83,14 @@
 
 .menu{
     flex:1;
-    border-right: None;
+    border-right: none;
 }
 
 
 .logout-button-div{
-    padding:12px 16px;
-    border-top:1px solid var(--el-border-color-light)
+    padding:0px 16px 60px 16px;
+    display: flex;
+    align-items: center;
 }
 .logout-button{
     width:100%

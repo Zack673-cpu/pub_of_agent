@@ -4,4 +4,10 @@
 	<router-view />
 </template>
 
-<style scoped></style>
+<style >
+	
+	body{
+		margin: 0;
+		font-family:var(--font-family)	
+	}
+</style>

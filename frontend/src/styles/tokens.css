@@ -1,0 +1,22 @@
+:root{
+    --color-bg: #F7F8FA;
+    --color-surface: #FFFFFF;
+    --color-text-primary: #1F2329;
+    --color-text-secondary: #646A73;
+    --color-brand:#3370FF;
+    --color-border:#E5E6EB;
+    --radius-md:8px;
+    --shadow-sm:0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md:0 4px 16px rgba(0,0,0,0.08);
+    --space-xs:4px;
+    --space-sm:8px;
+    --space-md:16px;
+    --space-lg:24px;
+    --space-xl:32px;
+    --space-sl:64px;
+    --font-size-sm:14px;
+    --font-size-md:16px;
+    --font-size-lg:20px;
+    --font-family:'Inter',-apple-system,'PingFang SC','Microsoft YaHei','Segoe UI',Roboto,sans-serif;
+    --el-font-family:var(--font-family);
+}

@@ -1,41 +1,42 @@
 <template>
-    <el-form
-        :model="form"
-        label-width="80px"
-        @submit.prevent="handleLogin"
-    >
-        <el-form-item label="用户名">
-            <el-input
-                v-model="form.username"
-                placeholder="请输入用户名"
-                clearable
-               
-            />
-            <!-- clearable一键清空功能 -->
-        </el-form-item>
-            
+    <div class="login-page">
+        <div class="login-card">
+            <el-form
+                :model="form"
+                @submit.prevent="handleLogin"
+            >
+                <el-form-item label="用户名">
+                    <el-input
+                        v-model="form.username"
+                        placeholder="请输入用户名"
+                        clearable
+                    
+                    />
+                    <!-- clearable一键清空功能 -->
+                </el-form-item>
+                    
 
-        <el-form-item label="密码">
-           <el-input
-                v-model="form.password"
-                placeholder="请输入密码"
-                clearable
-                type="password"
-                show-password
-            />
+                <el-form-item label="密码">
+                    <el-input
+                        v-model="form.password"
+                        placeholder="请输入密码"
+                        clearable
+                        type="password"
+                        show-password
+                    />
 
-        </el-form-item>
+                </el-form-item>
 
-        <el-form-item>
-            <el-button type="primary" @click="handleLogin">登录</el-button>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="primary" @click="goRegist">去注册</el-button>
-        </el-form-item>
-        
-            <!-- type="primary"表示这个按钮是主要按钮 -->
-    </el-form>
-
+                <el-form-item>
+                    <el-button type="primary" @click="handleLogin">登录</el-button>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" @click="goRegist">去注册</el-button>
+                </el-form-item>
+                    <!-- type="primary"表示这个按钮是主要按钮 -->
+            </el-form>
+        </div>
+    </div>
 
 </template>
 
@@ -84,3 +85,21 @@
     }
 
 </script>
+<style scoped>
+.login-page{
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--color-bg);
+}   
+.login-card{
+    width:clamp(360px, 56vw, 400px);
+    padding:var(--space-xl);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    box-shadow:var(--shadow-md);
+
+}
+
+</style>
