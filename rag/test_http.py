@@ -1,5 +1,5 @@
 import requests
-
+from fastapi import HTTPException
 
 def refresh(rt:str):
     resp=requests.post(    
@@ -8,9 +8,14 @@ def refresh(rt:str):
     )
     tokens=resp.json()
     print('状态码：',resp.status_code)
-    refresh_token=tokens['refresh_token']
-    print('refresh_token:',refresh_token)
-    return 
+    if resp.status_code==200:
+
+        refresh_token=tokens['refresh_token']
+        print('refresh_token:',refresh_token)
+        return 
+    else :
+        print(tokens['detail'])
+        return 
 
 
 if __name__ =="__main__":
