@@ -1,15 +1,26 @@
 import requests
 
-url="http://localhost:8000/ask"
-headers={"authorization":"123456"}
 
-# 情况一：不带头
-# 情况二：headers = {"Authorization": "错误值"}
-# 情况三：headers = {"Authorization": "123456"}
+def refresh(rt:str):
+    resp=requests.post(    
+        "http://localhost:8000/refresh",
+        json={'refresh_token':rt},      
+    )
+    tokens=resp.json()
+    print('状态码：',resp.status_code)
+    refresh_token=tokens['refresh_token']
+    print('refresh_token:',refresh_token)
+    return 
 
-body={"Question":"什么是线性代数"}
 
+if __name__ =="__main__":
+    login_resp=requests.post(
+        "http://localhost:8000/login",
+        json={'username':'baseline_check','password':'testpass123'}
 
-response=requests.post(url,json=body,headers=headers)
-print(response.status_code)
-print(response.json())
+    )
+
+    tokens=login_resp.json()
+    refresh_token=tokens['refresh_token']
+    refresh(refresh_token)
+    refresh(refresh_token)
