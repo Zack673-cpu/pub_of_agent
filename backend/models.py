@@ -59,7 +59,7 @@ class Book(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(200))
     requirement:Mapped[str]= mapped_column(Text)
-    status:Mapped[BookStatusEnum]=mapped_column(SAEnum(BookStatusEnum,name="books_status"),nullable=False)
+    status:Mapped[BookStatusEnum]=mapped_column(SAEnum(BookStatusEnum,name="books_status"),nullable=False,default=BookStatusEnum.drafting)
     created_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),nullable=False)
     updated_at:Mapped[datetime]=mapped_column(default=lambda:datetime.now(timezone.utc),onupdate=lambda:datetime.now(timezone.utc),nullable=False)
     user: Mapped["User"] = relationship(back_populates="books")

@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 from backend.database import get_session
 from sqlalchemy.orm import Session
-from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password
-from backend.models import RefreshToken, User
+from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password,verify_access_token
+from backend.models import RefreshToken, User,Book
 from datetime import datetime,timezone,timedelta
 from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,7 +75,9 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     username:str
     password:str
-
+class CreateBookBody(BaseModel):
+    title:str 
+    requirement:str
 
 
 
@@ -222,5 +224,29 @@ async def login(body:LoginBody,db:Session=Depends(get_session)):
             raise HTTPException(status_code=500,detail=str(e))
         
         return {"message":"登录成功","access_token":access_token,"refresh_token":refresh_token}
+
+@app.post("/books")
+async def create_book(body:CreateBookBody,authorization:str=Header(default=None),db:Session=Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+    try:
+        new=Book(
+            user_id=user_id,
+            title=body.title,
+            requirement=body.requirement,
+        )
+        db.add(new)
+        db.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
+    return {"id":new.id,"title":new.title,"requirement":new.requirement,"status":new.status,"created_at":new.created_at}
 
     
