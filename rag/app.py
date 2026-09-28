@@ -249,4 +249,58 @@ async def create_book(body:CreateBookBody,authorization:str=Header(default=None)
         raise HTTPException(status_code=500,detail=str(e))
     return {"id":new.id,"title":new.title,"requirement":new.requirement,"status":new.status,"created_at":new.created_at}
 
+@app.get("/books")
+async def list_books(authorization: str =Header(default=None),db:Session=Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
     
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+ 
+    res=[]
+    try:
+        row=db.query(Book).filter(user_id==Book.user_id).order_by(Book.created_at.desc()).all()
+        for book in row:
+            
+            created_at=book.created_at
+            created_at=created_at.replace(tzinfo=timezone.utc).isoformat()
+            updated_at=book.updated_at
+            updated_at=updated_at.replace(tzinfo=timezone.utc).isoformat()
+            res.append({"id":book.id,"title":book.title,"requirement":book.requirement,"status":book.status,"created_at":created_at,"updated_at":updated_at})
+
+    except Exception as e:
+        raise e
+    return {"books":res}
+
+
+
+@app.get("/books/{book_id}")
+async def get_book(book_id:int ,authorization:str=Header(default=None),db:Session=Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+
+    row=db.query(Book).filter(book_id==Book.id).first()
+    if row is None:
+        raise HTTPException(status_code=404,detail="    查不到书籍")
+    if row.user_id!=user_id:
+        raise HTTPException(status_code=403,detail="    归属错误")
+    
+    created_at=row.created_at
+    created_at=created_at.replace(tzinfo=timezone.utc).isoformat()
+    updated_at=row.updated_at
+    updated_at=updated_at.replace(tzinfo=timezone.utc).isoformat()
+
+    return {"id":row.id,"title":row.title,"requirement":row.requirement,"status":row.status,"created_at":created_at,"updated_at":updated_at}

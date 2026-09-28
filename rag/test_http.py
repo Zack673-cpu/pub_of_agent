@@ -6,10 +6,10 @@ def refresh(rt:str):
         "http://localhost:8000/refresh",
         json={'refresh_token':rt},      
     )
-    tokens=resp.json()
+    
     print('状态码：',resp.status_code)
     if resp.status_code==200:
-
+        tokens=resp.json()
         refresh_token=tokens['refresh_token']
         print('refresh_token:',refresh_token)
         return 
@@ -26,13 +26,45 @@ def new_book(at:str):
             'requirement':'elysia 赛高'
         },
     )
-    data=resp.json()
+    print('状态码：',resp.status_code)
     if resp.status_code==200:
+        data=resp.json()
         print(data)
         return 
     else :
         print(data['detail'])
         return
+
+def get_new_book(at:str):
+    resp=requests.get(
+        url="http://localhost:8000/books",
+        headers={'Authorization':f'Bearer {at}'},
+        json={},
+    )
+    print('状态码：',resp.status_code)
+    if resp.status_code==200:
+        data=resp.json()
+        print(data)
+        return data['books'][0]['id']
+    else:
+        print(data['detail'])
+        return 
+
+def get_book_byid(at:str,book_id):
+    resp=requests.get(
+        url=f"http://localhost:8000/books/{book_id}",
+        headers={'Authorization':f'Bearer {at}'},
+        json={},
+    )
+    print('状态码：',resp.status_code)
+    if resp.status_code==200:
+        data=resp.json()
+        print(data) 
+        return data['id']
+    else:
+        print(data['detail'])
+        return 
+
 
 if __name__ =="__main__":
     login_resp=requests.post(
@@ -46,4 +78,6 @@ if __name__ =="__main__":
     access_token=tokens['access_token']
     # refresh(refresh_token)
     # refresh(refresh_token)
-    new_book(access_token)
+    # new_book(access_token)
+    book_id=get_new_book(access_token)
+    get_book_byid(access_token,book_id)
