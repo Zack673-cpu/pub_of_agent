@@ -11,11 +11,11 @@ from pathlib import Path
 from backend.database import get_session
 from sqlalchemy.orm import Session
 from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password,verify_access_token
-from backend.models import RefreshToken, User,Book
+from backend.models import RefreshToken, User,Book,OutlineStaging,OutlineVersion
 from datetime import datetime,timezone,timedelta
 from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
-
+import json
 
 
 logging.basicConfig(
@@ -292,7 +292,10 @@ async def get_book(book_id:int ,authorization:str=Header(default=None),db:Sessio
     except Exception as e:
         raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
 
-    row=db.query(Book).filter(book_id==Book.id).first()
+    try:
+        row=db.query(Book).filter(book_id==Book.id).first()
+    except Exception as e:
+        raise e
     if row is None:
         raise HTTPException(status_code=404,detail="    查不到书籍")
     if row.user_id!=user_id:
@@ -304,3 +307,80 @@ async def get_book(book_id:int ,authorization:str=Header(default=None),db:Sessio
     updated_at=updated_at.replace(tzinfo=timezone.utc).isoformat()
 
     return {"id":row.id,"title":row.title,"requirement":row.requirement,"status":row.status,"created_at":created_at,"updated_at":updated_at}
+
+
+@app.put("/books/{book_id}/outline/staging")
+async def save_outline_staging(book_id: int, body: dict, authorization: str = Header(default=None), db: Session = Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+
+    
+    try:
+
+        row=db.get(OutlineStaging,book_id)
+        book=db.get(Book,book_id)
+        tree=json.dumps(body, ensure_ascii=False)
+    except Exception as e:
+        raise e    
+    if book is None:
+        raise HTTPException(status_code=404,detail="    书籍查不到")
+    if book.user_id!=user_id:
+        raise HTTPException(status_code=403,detail="    归属错误")
+    if row is None:
+        try:
+            row=OutlineStaging(
+                book_id=book_id,
+                tree_json=tree,
+            )
+            db.add(row)
+            db.commit()
+
+        except Exception as e:
+            raise e
+    else:
+        try:
+            row.tree_json=tree
+            db.commit()
+        except Exception as e:
+            raise e
+
+    return {"book_id":book_id, "updated_at": row.updated_at.replace(tzinfo=timezone.utc).isoformat()}
+
+
+
+@app.get("/books/{book_id}/outline/versions")
+async def list_outline_versions(book_id: int, authorization: str = Header(default=None), db: Session = Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+
+    try:
+        row=db.query(OutlineVersion).filter(OutlineVersion.book_id==book_id).order_by(OutlineVersion.version_no.asc()).all()
+        book=db.get(Book,book_id)
+    except Exception as e:
+        raise e
+    if book is None:
+        raise HTTPException(status_code=404,detail="    书籍查不到")
+    if book.user_id!=user_id:
+        raise HTTPException(status_code=403,detail="    归属错误")
+    res=[]
+    for v in row:
+        tree=json.loads(v.tree_json)
+        res.append({"id":v.id,"version_no":v.version_no,"tree_json":tree,"created_at":v.created_at.replace(tzinfo=timezone.utc).isoformat()})
+
+
+    return {"versions":res}

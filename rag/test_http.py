@@ -39,7 +39,6 @@ def get_new_book(at:str):
     resp=requests.get(
         url="http://localhost:8000/books",
         headers={'Authorization':f'Bearer {at}'},
-        json={},
     )
     print('状态码：',resp.status_code)
     if resp.status_code==200:
@@ -54,7 +53,6 @@ def get_book_byid(at:str,book_id):
     resp=requests.get(
         url=f"http://localhost:8000/books/{book_id}",
         headers={'Authorization':f'Bearer {at}'},
-        json={},
     )
     print('状态码：',resp.status_code)
     if resp.status_code==200:
@@ -65,6 +63,33 @@ def get_book_byid(at:str,book_id):
         print(data['detail'])
         return 
 
+def put_outline_staging(at:str,book_id=1):
+    resp=requests.put(
+        url=f"http://localhost:8000/books/{book_id}/outline/staging",
+        headers={'Authorization':f'Bearer {at}'},
+        json={"test":'test'},
+    )
+    print('状态码：',resp.status_code)
+    if resp.status_code==200:
+        data=resp.json()
+        print(data) 
+        
+    else:
+        print(data['detail'])
+        return 
+
+def get_outline_versions(at:str,book_id=1):
+    resp=requests.get(
+        url=f"http://localhost:8000/books/{book_id}/outline/versions",
+        headers={'Authorization':f'Bearer {at}'},
+    )
+    print('状态码：',resp.status_code)
+    if resp.status_code==200:
+        data=resp.json()
+        print(data) 
+    else:
+        print(data['detail'])
+        return 
 
 if __name__ =="__main__":
     login_resp=requests.post(
@@ -79,5 +104,7 @@ if __name__ =="__main__":
     # refresh(refresh_token)
     # refresh(refresh_token)
     # new_book(access_token)
-    book_id=get_new_book(access_token)
-    get_book_byid(access_token,book_id)
+    # book_id=get_new_book(access_token)
+    # get_book_byid(access_token,book_id)
+    put_outline_staging(access_token)
+    get_outline_versions(access_token)
