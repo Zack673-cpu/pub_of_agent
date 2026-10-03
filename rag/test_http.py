@@ -8,14 +8,15 @@ def refresh(rt:str):
     )
     
     print('状态码：',resp.status_code)
+    data=resp.json()
     if resp.status_code==200:
-        tokens=resp.json()
-        refresh_token=tokens['refresh_token']
-        print('refresh_token:',refresh_token)
-        return 
-    else :
-        print(tokens['detail'])
-        return 
+        print(data) 
+    else:
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
 
 def new_book(at:str):
     resp=requests.post(
@@ -27,13 +28,15 @@ def new_book(at:str):
         },
     )
     print('状态码：',resp.status_code)
+    data=resp.json()
     if resp.status_code==200:
-        data=resp.json()
-        print(data)
-        return 
-    else :
-        print(data['detail'])
-        return
+        print(data) 
+    else:
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
 
 def get_new_book(at:str):
     resp=requests.get(
@@ -41,12 +44,14 @@ def get_new_book(at:str):
         headers={'Authorization':f'Bearer {at}'},
     )
     print('状态码：',resp.status_code)
+    data=resp.json()
     if resp.status_code==200:
-        data=resp.json()
         print(data)
         return data['books'][0]['id']
     else:
-        print(data['detail'])
+        if 'detail' in data:
+            print(data['detail'])
+        else: print(data)
         return 
 
 def get_book_byid(at:str,book_id):
@@ -54,13 +59,15 @@ def get_book_byid(at:str,book_id):
         url=f"http://localhost:8000/books/{book_id}",
         headers={'Authorization':f'Bearer {at}'},
     )
-    print('状态码：',resp.status_code)
+    print('状态码：',resp.status_code)        
+    data=resp.json()
     if resp.status_code==200:
-        data=resp.json()
         print(data) 
         return data['id']
     else:
-        print(data['detail'])
+        if 'detail' in data:
+            print(data['detail'])
+        else: print(data)
         return 
 
 def put_outline_staging(at:str,book_id=1):
@@ -70,13 +77,15 @@ def put_outline_staging(at:str,book_id=1):
         json={"test":'test'},
     )
     print('状态码：',resp.status_code)
+    data=resp.json()
     if resp.status_code==200:
-        data=resp.json()
         print(data) 
-        
     else:
-        print(data['detail'])
-        return 
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
 
 def get_outline_versions(at:str,book_id=1):
     resp=requests.get(
@@ -84,12 +93,48 @@ def get_outline_versions(at:str,book_id=1):
         headers={'Authorization':f'Bearer {at}'},
     )
     print('状态码：',resp.status_code)
+    data=resp.json()
     if resp.status_code==200:
-        data=resp.json()
         print(data) 
     else:
-        print(data['detail'])
-        return 
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
+
+def put_section_staging(at:str,section_id):
+    resp=requests.put(
+        url=f"http://localhost:8000/sections/{section_id}/staging",
+        headers={'Authorization':f'Bearer {at}'},
+        json={'content':'test01'}
+    )
+    print('状态码：',resp.status_code)
+    data=resp.json()
+    if resp.status_code==200:
+        print(data) 
+    else:
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
+
+def get_section_versions(at:str,section_id):
+    resp=requests.get(
+        url=f"http://localhost:8000/sections/{section_id}/versions",
+        headers={'Authorization':f'Bearer {at}'},
+    )
+    print('状态码：',resp.status_code)
+    data=resp.json()
+    if resp.status_code==200:
+        print(data) 
+    else:
+        if 'detail' in data:
+            print(data['detail'])
+        else :
+            print(data)
+    return 
 
 if __name__ =="__main__":
     login_resp=requests.post(
@@ -106,5 +151,11 @@ if __name__ =="__main__":
     # new_book(access_token)
     # book_id=get_new_book(access_token)
     # get_book_byid(access_token,book_id)
-    put_outline_staging(access_token)
-    get_outline_versions(access_token)
+    # put_outline_staging(access_token)
+    # get_outline_versions(access_token)
+
+    # for i in range (1,4):
+    #     get_section_versions(access_token,i)
+    # get_section_versions(access_token,999)
+
+    put_section_staging(access_token,1)

@@ -11,7 +11,7 @@ from pathlib import Path
 from backend.database import get_session
 from sqlalchemy.orm import Session
 from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password,verify_access_token
-from backend.models import RefreshToken, User,Book,OutlineStaging,OutlineVersion
+from backend.models import RefreshToken, User,Book,OutlineStaging,OutlineVersion,Section,Staging,DraftVersion
 from datetime import datetime,timezone,timedelta
 from sqlalchemy.exc import IntegrityError
 from fastapi.middleware.cors import CORSMiddleware
@@ -384,3 +384,88 @@ async def list_outline_versions(book_id: int, authorization: str = Header(defaul
 
 
     return {"versions":res}
+
+
+@app.put("/sections/{id}/staging")
+async def save_section_staging(id:int,body: dict, authorization: str = Header(default=None), db: Session = Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+
+    try:
+        row=db.get(Section,id)
+        # row.staging 就是暂存行，因为建立了relationship
+        # row.book 就是对应的书，因为建立了relationship
+    except Exception as e:
+        raise e
+    if row is None:
+        raise HTTPException(status_code=404,detail="    章节不存在")
+        #后面会批量生成章节id，所以是为了防止传错id    
+    if row.book is None:
+        raise HTTPException(status_code=404,detail="    书籍查不到")
+    if row.book.user_id!=user_id:
+        raise HTTPException(status_code=403,detail="    归属错误")
+    if 'content' in body:
+        if body["content"] is None:
+            raise HTTPException(status_code=422, detail="   正文错误，字典的content值为None")
+        content=body["content"]
+    elif 'content' not in body:
+        raise HTTPException(status_code=422,detail="    正文错误，字典的content值没有传")        
+    
+
+    
+    if row.staging is None:
+        #这里才是说明新建的还没有暂存
+        try:
+            row.staging=Staging(
+                section_id=id,
+                content=content,
+            )
+            db.commit()
+        except Exception as e:
+            raise e
+    else:
+        try:
+            row.staging.content=content
+            db.commit()
+        except Exception as e:
+            raise e
+        
+    return {"section_id": id, "updated_at": row.staging.updated_at.replace(tzinfo=timezone.utc).isoformat()}
+
+@app.get("/sections/{id}/versions")
+async def list_section_versions(id:int,authorization: str = Header(default=None), db: Session = Depends(get_session)):
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+
+    try:
+        row=db.get(Section, id)
+        draft_versions=db.query(DraftVersion).filter(DraftVersion.section_id==id).order_by(DraftVersion.version_no.asc()).all()
+    except Exception as e:
+        raise e
+    if row is None:
+        raise HTTPException(status_code=404,detail="    章节不存在")
+    if row.book is None:
+        raise HTTPException(status_code=404,detail="    书籍查不到")
+    if row.book.user_id!=user_id:
+        raise HTTPException(status_code=403,detail="    归属错误")
+    
+    res=[]
+    for v in draft_versions:
+        created_at=v.created_at.replace(tzinfo=timezone.utc).isoformat()
+        res.append({'id':v.id,'version_no':v.version_no,'content':v.content,'created_at':created_at})
+
+    return {'versions':res}
