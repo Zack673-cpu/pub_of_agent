@@ -1,6 +1,5 @@
-import rag.db as db
 import rag.rag as rag
-from fastapi import FastAPI,Depends,Header,HTTPException
+from fastapi import FastAPI,Depends,HTTPException
 from pydantic import BaseModel,Field
 from fastapi.staticfiles import StaticFiles
 import rag.pipeline as pipeline
@@ -10,7 +9,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from backend.database import get_session
 from sqlalchemy.orm import Session
-from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password,verify_access_token
+from rag.auth import hash_refresh_token,create_refresh_token_plain,create_access_token,hash_password,verify_password,authentication
 from backend.models import RefreshToken, User,Book,OutlineStaging,OutlineVersion,Section,Staging,DraftVersion
 from datetime import datetime,timezone,timedelta
 from sqlalchemy.exc import IntegrityError
@@ -50,8 +49,6 @@ app.add_middleware(
 
 
 
-TOKEN ="123456"
-
 
 
 
@@ -61,11 +58,9 @@ app.mount("/frontend",files,name="frontend")
 
 
 
-class OUTLINE (BaseModel):
-    Topic:str
 
-class SECTION(BaseModel):
-    Section:str
+
+
 
 class RefreshBody(BaseModel):
     refresh_token: str
@@ -81,32 +76,6 @@ class CreateBookBody(BaseModel):
 
 
 
-@app.post("/outline")
-async def outline_agent(outline:OUTLINE,authorization:str =Header (default=None)):
-    if authorization!=TOKEN:
-        raise HTTPException(status_code=401, detail= "   鉴权错误，token值不对！")
-    try :
-        out=pipeline.generate_outline(outline.Topic)
-    except Exception as e:
-        logger.error("/outline出错",exc_info=True)
-        raise HTTPException(status_code=500,detail=str(e))
-
-    return {"大纲：":out}
-
-
-#这里实际接上的应该是整个大纲，按照大纲写作出整篇教材而不是一节，后续扩展，现在就按照接收一节来
-@app.post("/generate")
-async def generate_agent(section:SECTION,authorization: str=Header(default=None)):
-    if authorization!=TOKEN:
-        raise HTTPException(status_code=401, detail="   鉴权错误，token值不对！")
-
-    try:
-        draft=pipeline.generate_section(section.Section)
-    except Exception as e:
-        logger.error("/generate出错",exc_info=True)
-        raise HTTPException(status_code=500,detail=str(e))
-
-    return {"初稿：":draft}
 
 
 @app.post("/refresh")
@@ -226,17 +195,7 @@ async def login(body:LoginBody,db:Session=Depends(get_session)):
         return {"message":"登录成功","access_token":access_token,"refresh_token":refresh_token}
 
 @app.post("/books")
-async def create_book(body:CreateBookBody,authorization:str=Header(default=None),db:Session=Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
+async def create_book(body:CreateBookBody,user_id:int=Depends(authentication),db:Session=Depends(get_session)):
     try:
         new=Book(
             user_id=user_id,
@@ -250,18 +209,7 @@ async def create_book(body:CreateBookBody,authorization:str=Header(default=None)
     return {"id":new.id,"title":new.title,"requirement":new.requirement,"status":new.status,"created_at":new.created_at}
 
 @app.get("/books")
-async def list_books(authorization: str =Header(default=None),db:Session=Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
- 
+async def list_books(user_id:int=Depends(authentication),db:Session=Depends(get_session)):
     res=[]
     try:
         row=db.query(Book).filter(user_id==Book.user_id).order_by(Book.created_at.desc()).all()
@@ -280,18 +228,7 @@ async def list_books(authorization: str =Header(default=None),db:Session=Depends
 
 
 @app.get("/books/{book_id}")
-async def get_book(book_id:int ,authorization:str=Header(default=None),db:Session=Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
-
+async def get_book(book_id:int ,user_id=Depends(authentication),db:Session=Depends(get_session)):
     try:
         row=db.query(Book).filter(book_id==Book.id).first()
     except Exception as e:
@@ -310,19 +247,7 @@ async def get_book(book_id:int ,authorization:str=Header(default=None),db:Sessio
 
 
 @app.put("/books/{book_id}/outline/staging")
-async def save_outline_staging(book_id: int, body: dict, authorization: str = Header(default=None), db: Session = Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
-
-    
+async def save_outline_staging(book_id: int, body: dict, user_id=Depends(authentication), db: Session = Depends(get_session)):    
     try:
 
         row=db.get(OutlineStaging,book_id)
@@ -357,17 +282,7 @@ async def save_outline_staging(book_id: int, body: dict, authorization: str = He
 
 
 @app.get("/books/{book_id}/outline/versions")
-async def list_outline_versions(book_id: int, authorization: str = Header(default=None), db: Session = Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
-
+async def list_outline_versions(book_id: int, user_id:int=Depends(authentication), db: Session = Depends(get_session)):
     try:
         row=db.query(OutlineVersion).filter(OutlineVersion.book_id==book_id).order_by(OutlineVersion.version_no.asc()).all()
         book=db.get(Book,book_id)
@@ -387,17 +302,7 @@ async def list_outline_versions(book_id: int, authorization: str = Header(defaul
 
 
 @app.put("/sections/{id}/staging")
-async def save_section_staging(id:int,body: dict, authorization: str = Header(default=None), db: Session = Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
-
+async def save_section_staging(id:int,body: dict, user_id:int=Depends(authentication), db: Session = Depends(get_session)):
     try:
         row=db.get(Section,id)
         # row.staging 就是暂存行，因为建立了relationship
@@ -440,17 +345,7 @@ async def save_section_staging(id:int,body: dict, authorization: str = Header(de
     return {"section_id": id, "updated_at": row.staging.updated_at.replace(tzinfo=timezone.utc).isoformat()}
 
 @app.get("/sections/{id}/versions")
-async def list_section_versions(id:int,authorization: str = Header(default=None), db: Session = Depends(get_session)):
-    if authorization is None:
-        raise HTTPException(status_code=401,detail="   access_token没有拿到")
-    if authorization.startswith("Bearer ") is False:
-        raise HTTPException(status_code=401,detail="    access_token格式不对")
-    authorization=authorization.removeprefix("Bearer ")
-    try:
-        user_id=verify_access_token(authorization)
-    except Exception as e:
-        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
-
+async def list_section_versions(id:int,user_id:int=Depends(authentication) ,db: Session = Depends(get_session)):
     try:
         row=db.get(Section, id)
         draft_versions=db.query(DraftVersion).filter(DraftVersion.section_id==id).order_by(DraftVersion.version_no.asc()).all()

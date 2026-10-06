@@ -25,7 +25,7 @@ def LLM(question,knowledge:list,history:list) -> str :
         "Content-Type": "application/json"
     }
     body={
-        "model": "qwen-plus",
+        "model": "qwen3.8-max",
         "messages": messages,
         "temperature":0.5,
         "repetition_penalty":1.2
@@ -36,7 +36,7 @@ def LLM(question,knowledge:list,history:list) -> str :
     for attempt in range(0,max_retries):
         try:
 
-            request=requests.post(url,headers=headers,json=body, timeout=30)
+            request=requests.post(url,headers=headers,json=body, timeout=300000)
             request.raise_for_status()
             data=request.json()
             return data["choices"][0]["message"]["content"]

@@ -1,12 +1,10 @@
-
-from email import message
 from pathlib import Path
 import math
 import os
 from dotenv import load_dotenv
 import requests
 import json
-import rag.llm as llm
+import llm
 import time
 #模块启动
 load_dotenv() 

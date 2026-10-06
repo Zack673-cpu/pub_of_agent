@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import secrets   # 生成加密安全随机串,签名用
 import hashlib   # 算 SHA-256 存库里
+from fastapi import Header,HTTPException
 load_dotenv()
 JwtSecret=os.getenv("JWT_SECRET")
 
@@ -82,4 +83,18 @@ def hash_refresh_token(plain: str) -> str:
     #hexdigest是哈希对象的方法，返回 十六进制字符串，32字节*2位/字节=64位二进制
 
     return token_hashed
+
+
+def authentication ( authorization: str = Header( default= None ) ) -> int :
+    if authorization is None:
+        raise HTTPException(status_code=401,detail="   access_token没有拿到")
+    if authorization.startswith("Bearer ") is False:
+        raise HTTPException(status_code=401,detail="    access_token格式不对")
+    
+    authorization=authorization.removeprefix("Bearer ")
+    try:
+        user_id=verify_access_token(authorization)
+        return user_id
+    except Exception as e:
+        raise HTTPException(status_code=401,detail="    access_token解析失败，原因："+str(e))
     

@@ -1,16 +1,20 @@
-from rag import llm,rag
+import llm,rag
 import json
 
-def outline_agent(topic: str) -> str:
+def outline_agent(title: str, requirement: str) -> str:
     """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
-    prompt=f"""请为教材《{topic}》写目录，注意简洁明了，只写最主要的概念。不要在目录前后输出任何无关的内容。格式为（ xxx 表示占位符，实际内容由你填充，结构也可自行参照规律按需增加或减少）：
+    if requirement=="":requirement='无'
+    prompt=f"""请为教材《{title}》写目录，注意简洁明了，只写最主要的概念。不要在目录前后输出任何无关的内容。格式为 '章节->分节->小节'（ 'xxx' 表示占位符，实际内容由你填充）：
         第1章 xxx
             1.1 xxx
                 1.1.1 xxx
                 1.1.2 xxx
+                1.1.3 xxx
+                1.1.4 xxx
             1.2 xxx
                 1.2.1 xxx
                 1.2.2 xxx
+                1.2.3 xxx
         第2章 xxx
             2.1 xxx
                 2.1.1 xxx
@@ -19,7 +23,18 @@ def outline_agent(topic: str) -> str:
                 2.2.1 xxx
                 2.2.2 xxx
         第3章 xxx
-            
+            3.1 xxx
+                3.1.1 xxx
+            3.2 xxx
+                3.2.1 xxx
+                3.2.2 xxx
+                3.2.3 xxx
+                3.2.4 xxx
+                3.2.5 xxx
+
+        以上只是示例，其中章节、分节、小节都可以自由扩充或缩减，一一对应即可。比如增加第4章4.1、4.2、4.3、4.4及其小节、第5章及其分节，也可以缩减，比如第2章只有2.1及其小节。
+        不允许出现章节和分节下面没有小节，比如只有第4章连4.1都没有，或者只有第4章和4.1，没有下面的小节4.1.1。不允许编号不按顺序，比如第4章下面分节写成5.1，第4章4.1下面写成5.1.1或者5.2.1。
+        额外要求：{requirement}
     """
     return llm.LLM(prompt,"",[])
 
@@ -48,7 +63,7 @@ def rewrite_agent(draft: str, issues: str) -> str:
 
 def check_duplicate(draft: str, corpus: str) -> float:
     """稿子 + 比对文本 → 重复率，可用简单字符重叠算，不必调模型"""
-    size=3;
+    size=3
     draft_chunks=[]
     for i in range(0,len(draft),size):
         if (i+size)<=len(draft):
@@ -75,9 +90,7 @@ def check_duplicate(draft: str, corpus: str) -> float:
     return re
 
 
-def generate_outline(topic:str)->str:
-    outline=outline_agent(topic)
-    return outline
+
 
 
 def generate_section(section:str) -> str:
@@ -115,6 +128,6 @@ def generate_section(section:str) -> str:
 
 
 if __name__=="__main__":
-    outline=generate_outline("线性代数")
-    draft=generate_section("线性代数在监督学习中的作用")
-    print(outline,draft)
+    outline=outline_agent("线性代数","写十章，每章要清晰明了，既要抽象简化方便理解，又要有专业推导经得起推敲")
+    # draft=generate_section("线性代数在监督学习中的作用")
+    print(outline)
