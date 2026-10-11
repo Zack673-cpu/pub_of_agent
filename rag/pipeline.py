@@ -1,42 +1,67 @@
 import llm,rag
 import json
-
+import re 
+import uuid
 def outline_agent(title: str, requirement: str) -> str:
     """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
     if requirement=="":requirement='无'
     prompt=f"""请为教材《{title}》写目录，注意简洁明了，只写最主要的概念。不要在目录前后输出任何无关的内容。格式为 '章节->分节->小节'（ 'xxx' 表示占位符，实际内容由你填充）：
         第1章 xxx
-            1.1 xxx
+            1 xxx
                 1.1.1 xxx
                 1.1.2 xxx
                 1.1.3 xxx
                 1.1.4 xxx
-            1.2 xxx
+            2 xxx
                 1.2.1 xxx
                 1.2.2 xxx
                 1.2.3 xxx
+            3 xxx
+                1.3.1 xxx
         第2章 xxx
-            2.1 xxx
+            1 xxx
                 2.1.1 xxx
                 2.1.2 xxx
-            2.2 xxx 
+            2 xxx 
                 2.2.1 xxx
                 2.2.2 xxx
         第3章 xxx
-            3.1 xxx
+            1 xxx
                 3.1.1 xxx
-            3.2 xxx
+            2 xxx
                 3.2.1 xxx
                 3.2.2 xxx
                 3.2.3 xxx
                 3.2.4 xxx
                 3.2.5 xxx
 
-        以上只是示例，其中章节、分节、小节都可以自由扩充或缩减，一一对应即可。比如增加第4章4.1、4.2、4.3、4.4及其小节、第5章及其分节，也可以缩减，比如第2章只有2.1及其小节。
-        不允许出现章节和分节下面没有小节，比如只有第4章连4.1都没有，或者只有第4章和4.1，没有下面的小节4.1.1。不允许编号不按顺序，比如第4章下面分节写成5.1，第4章4.1下面写成5.1.1或者5.2.1。
+        以上只是示例，其中章节、分节、小节都可以自由扩充或缩减，一一对应即可。比如增加第4章1、2、3、4及其小节、第5章及其分节，也可以缩减，比如第2章只有1分节及其小节。
+        不允许出现章节下面没有分节或分节下面没有小节，比如第4章下连1分节都没有，或者只有第4章和1分节，没有下面的小节4.1.1。不允许编号不按顺序，比如第4章的1分节下面写成5.1.1或者5.2.1。
+        如果以下要求允许，可以根据参考资料额外追加内容。
         额外要求：{requirement}
     """
     return llm.LLM(prompt,"",[])
+
+def parse_outline(text: str) -> list[dict]:
+    """大纲文本 → 节树"""
+# [
+#   {"node_key": "…", "title": "随机事件和概率", "children": [
+#       {"node_key": "…", "title": "随机事件", "children": [
+#           {"node_key": "…", "title": "随机试验与样本空间", "children": []},
+#       ]},
+#   ]},
+# ]
+    lines=text.splitlines()
+    res_section=[]
+    res_ids=[]
+    for line in lines:
+        if not line: continue 
+        node_key=uuid.uuid4().hex
+        ids,sec=line.split(maxsplit=1)
+        res_section.append({'node_key':node_key,'title':sec,'children':[]})
+        res_ids.append({ids})
+
+
 
 
 def writer_agent(section: str, knowledge: list[str]) -> str:
@@ -128,6 +153,6 @@ def generate_section(section:str) -> str:
 
 
 if __name__=="__main__":
-    outline=outline_agent("线性代数","写十章，每章要清晰明了，既要抽象简化方便理解，又要有专业推导经得起推敲")
+    outline=outline_agent("大学本科范围的基础线性代数","写五章，每章要清晰明了，既要抽象简化方便理解，又要有专业推导经得起推敲")
     # draft=generate_section("线性代数在监督学习中的作用")
     print(outline)

@@ -11,9 +11,12 @@ h11==0.16.0
 idna==3.19
 Mako==1.4.1
 MarkupSafe==3.0.3
+pillow==12.3.0
 pydantic==1.10.26
 PyJWT==2.14.0
 PyMySQL==1.2.0
+pypdf==6.19.0
+pypdfium2==5.14.0
 python-dotenv==1.2.3
 requests==2.34.2
 SQLAlchemy==2.0.52
