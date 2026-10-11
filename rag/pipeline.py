@@ -37,7 +37,7 @@ def outline_agent(title: str, requirement: str) -> str:
 
         以上只是示例，其中章节、分节、小节都可以自由扩充或缩减，一一对应即可。比如增加第4章1、2、3、4及其小节、第5章及其分节，也可以缩减，比如第2章只有1分节及其小节。
         不允许出现章节下面没有分节或分节下面没有小节，比如第4章下连1分节都没有，或者只有第4章和1分节，没有下面的小节4.1.1。不允许编号不按顺序，比如第4章的1分节下面写成5.1.1或者5.2.1。
-        如果以下要求允许，可以根据参考资料额外追加内容。
+        如果以下要求允许，可以根据参考资料额外追加内容。追加的内容一律用中文数字，比如一二三，不允许用123。
         额外要求：{requirement}
     """
     return llm.LLM(prompt,"",[])
@@ -51,15 +51,62 @@ def parse_outline(text: str) -> list[dict]:
 #       ]},
 #   ]},
 # ]
+    stack = []
     lines=text.splitlines()
     res_section=[]
-    res_ids=[]
+
     for line in lines:
         if not line: continue 
         node_key=uuid.uuid4().hex
-        ids,sec=line.split(maxsplit=1)
-        res_section.append({'node_key':node_key,'title':sec,'children':[]})
-        res_ids.append({ids})
+        indent = len(line) - len(line.lstrip())   # 前导空白字符的个数
+        parts=line.split(maxsplit=1)  #按照空格切分 
+        if len(parts)==2:
+            _,sec=parts
+        else :
+            sec=parts[0]
+        
+
+
+        node={'node_key':node_key,'title':sec,'children':[]}
+        if not stack:
+            res_section.append(node)
+            stack.append((node,indent))
+        elif stack[-1][1]<indent:
+            stack[-1][0]['children'].append(node)
+            stack.append((node,indent))
+        elif stack[-1][1]==indent:
+            if stack[-1][1]==0:
+                res_section.append(node)
+                stack.pop()
+                stack.append((node,indent))
+            else :
+                stack.pop()
+                if not stack:
+                    res_section.append(node)
+                    stack.append((node,indent))
+                stack[-1][0]['children'].append(node)
+                stack.append((node,indent))
+        elif stack[-1][1]>indent:
+            if len(stack)==3:
+                stack.pop()
+                if stack[-1][1]==indent:
+                    stack.pop()
+                    stack[-1][0]['children'].append(node)
+                    stack.append((node,indent))
+                elif stack[-1][1]>indent:
+                    stack.pop()
+                    stack.pop()
+                    stack.append((node,indent))
+                    res_section.append(node)
+            elif len (stack)==2:
+                stack.pop()
+                stack.pop()
+                stack.append((node,indent))
+                res_section.append(node)
+
+            
+    return res_section    
+
 
 
 
