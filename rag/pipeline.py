@@ -1,7 +1,8 @@
 import llm,rag
 import json
-import re 
+import difflib
 import uuid
+from pathlib import Path
 def outline_agent(title: str, requirement: str) -> str:
     """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
     if requirement=="":requirement='无'
@@ -52,62 +53,56 @@ def parse_outline(text: str) -> list[dict]:
 #   ]},
 # ]
     stack = []
+    # [(node,indent)]
     lines=text.splitlines()
     res_section=[]
 
     for line in lines:
-        if not line: continue 
+        if not line.strip(): continue 
         node_key=uuid.uuid4().hex
-        indent = len(line) - len(line.lstrip())   # 前导空白字符的个数
         parts=line.split(maxsplit=1)  #按照空格切分 
         if len(parts)==2:
             _,sec=parts
         else :
             sec=parts[0]
+        indent = len(line) - len(line.lstrip())   # 前导空白字符的个数
         
-
-
+        
         node={'node_key':node_key,'title':sec,'children':[]}
+
         if not stack:
-            res_section.append(node)
-            stack.append((node,indent))
-        elif stack[-1][1]<indent:
-            stack[-1][0]['children'].append(node)
-            stack.append((node,indent))
-        elif stack[-1][1]==indent:
-            if stack[-1][1]==0:
                 res_section.append(node)
-                stack.pop()
                 stack.append((node,indent))
-            else :
+        else :
+            while(stack[-1][1]>=indent):
                 stack.pop()
                 if not stack:
                     res_section.append(node)
                     stack.append((node,indent))
+                    break
+            if  stack[-1][1]<indent:
                 stack[-1][0]['children'].append(node)
                 stack.append((node,indent))
-        elif stack[-1][1]>indent:
-            if len(stack)==3:
-                stack.pop()
-                if stack[-1][1]==indent:
-                    stack.pop()
-                    stack[-1][0]['children'].append(node)
-                    stack.append((node,indent))
-                elif stack[-1][1]>indent:
-                    stack.pop()
-                    stack.pop()
-                    stack.append((node,indent))
-                    res_section.append(node)
-            elif len (stack)==2:
-                stack.pop()
-                stack.pop()
-                stack.append((node,indent))
-                res_section.append(node)
 
             
     return res_section    
 
 
+
+def align_nodes(old_tree:list[dict]|None, new_tree:list[dict])->list[dict]:
+    """新树按标题序列对齐旧树，认回旧 node_key"""
+    if old_tree is None:return new_tree
+
+    # for i in old_tree:
+    #     for j in i['children']:
+    #         for k in j['children']:
+
+        
+    # difflib.SequenceMatcher( None , old_titles, new_titles).get_opcodes()
+
+def _align_level(old_nodes:list[dict], new_nodes:list[dict])->None:
+    """同一父节点下，两组兄弟节点按标题序列对齐"""
+    ...
 
 
 
@@ -143,7 +138,7 @@ def check_duplicate(draft: str, corpus: str) -> float:
                 
         else :draft_chunks.append(draft[i:len(draft)])
 
-    corpus_chunks=[];found=0;
+    corpus_chunks=[];found=0
     for j in range(0,len(corpus),size):
         if (j+size)<=len(corpus):
             corpus_chunks.append(corpus[j:j+size])
@@ -153,7 +148,7 @@ def check_duplicate(draft: str, corpus: str) -> float:
     corpus_set = set(corpus_chunks)
     for i in draft_chunks:
         if i in corpus_set:
-            found+=1;
+            found+=1
 
     if len(draft_chunks)==0 :
         raise ValueError(r"稿子数组长度为0，检查D:\Learning\pub_of_agent\rag\pipeline.py")
@@ -200,6 +195,11 @@ def generate_section(section:str) -> str:
 
 
 if __name__=="__main__":
-    outline=outline_agent("大学本科范围的基础线性代数","写五章，每章要清晰明了，既要抽象简化方便理解，又要有专业推导经得起推敲")
-    # draft=generate_section("线性代数在监督学习中的作用")
-    print(outline)
+    text_path=Path(__file__).parent/'corpus'/'概率论与数理统计（第二版）_目录.md'
+    # outline=outline_agent("大学本科范围的基础线性代数","写五章，每章要清晰明了，既要抽象简化方便理解，又要有专业推导经得起推敲")
+    # # draft=generate_section("线性代数在监督学习中的作用")
+    # print(outline)
+    with open(text_path,'r',encoding='utf-8') as f:
+        text=f.read()
+
+    print(parse_outline(text))
