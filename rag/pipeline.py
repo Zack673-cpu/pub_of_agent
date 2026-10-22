@@ -92,19 +92,24 @@ def parse_outline(text: str) -> list[dict]:
 def align_nodes(old_tree:list[dict]|None, new_tree:list[dict])->list[dict]:
     """新树按标题序列对齐旧树，认回旧 node_key"""
     if old_tree is None:return new_tree
-
-    # for i in old_tree:
-    #     for j in i['children']:
-    #         for k in j['children']:
-
-        
-    # difflib.SequenceMatcher( None , old_titles, new_titles).get_opcodes()
+    else :
+        _align_level(old_tree,new_tree)
+        return new_tree
 
 def _align_level(old_nodes:list[dict], new_nodes:list[dict])->None:
     """同一父节点下，两组兄弟节点按标题序列对齐"""
-    ...
+    if old_nodes is None or new_nodes is None:return    
+    old_titles=[]
+    new_titles=[]
+    for old in old_nodes:old_titles.append(old['title'])
+    for new in new_nodes:new_titles.append(new['title'])
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher( None , old_titles,new_titles).get_opcodes():
+        if tag=='equal':
+                for k in range(i2-i1):
+                    new_nodes[j1+k]['node_key']=old_nodes[i1+k]['node_key']
+                    _align_level(old_nodes[i1+k]['children'],new_nodes[j1+k]['children'])
 
-
+    return
 
 def writer_agent(section: str, knowledge: list[str]) -> str:
     """大纲一节 + RAG 素材 → 正文初稿，内部调 LLM()"""
@@ -202,4 +207,6 @@ if __name__=="__main__":
     with open(text_path,'r',encoding='utf-8') as f:
         text=f.read()
 
-    print(parse_outline(text))
+    tree=parse_outline(text)
+    print(align_nodes(None,tree))
+    
