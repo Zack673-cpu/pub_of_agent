@@ -3,10 +3,9 @@ import json
 import difflib
 import uuid
 from pathlib import Path
-def outline_agent(title: str, requirement: str) -> str:
-    """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
-    if requirement=="":requirement='无'
-    prompt=f"""请为教材《{title}》写目录，注意简洁明了，只写最主要的概念。不要在目录前后输出任何无关的内容。格式为 '章节->分节->小节'（ 'xxx' 表示占位符，实际内容由你填充）：
+
+
+base_prompt="""不要在目录前后输出任何无关的内容。输出格式为 '章节->分节->小节'（ 'xxx' 表示占位符，实际内容由你填充）：
         第1章 xxx
             1 xxx
                 1.1.1 xxx
@@ -38,7 +37,12 @@ def outline_agent(title: str, requirement: str) -> str:
 
         以上只是示例，其中章节、分节、小节都可以自由扩充或缩减，一一对应即可。比如增加第4章1、2、3、4及其小节、第5章及其分节，也可以缩减，比如第2章只有1分节及其小节。
         不允许出现章节下面没有分节或分节下面没有小节，比如第4章下连1分节都没有，或者只有第4章和1分节，没有下面的小节4.1.1。不允许编号不按顺序，比如第4章的1分节下面写成5.1.1或者5.2.1。
-        如果以下要求允许，可以根据参考资料额外追加内容。追加的内容一律用中文数字，比如一二三，不允许用123。
+        """
+
+def outline_agent(title: str, requirement: str) -> str:
+    """题目 → 大纲文本，内部拼 prompt 调 LLM()"""
+    if requirement=="":requirement='无'
+    prompt=f"""请为教材《{title}》写目录，注意简洁明了，只写最主要的概念。{base_prompt}如果以下要求允许，可以根据参考资料额外追加内容。追加的内容如果涉及数字一律用中文数字，比如一二三，不允许用123。
         额外要求：{requirement}
     """
     return llm.LLM(prompt,"",[])
@@ -90,26 +94,65 @@ def parse_outline(text: str) -> list[dict]:
 
 
 def align_nodes(old_tree:list[dict]|None, new_tree:list[dict])->list[dict]:
-    """新树按标题序列对齐旧树，认回旧 node_key"""
+    """新树旧树处理"""
     if old_tree is None:return new_tree
     else :
         _align_level(old_tree,new_tree)
         return new_tree
 
 def _align_level(old_nodes:list[dict], new_nodes:list[dict])->None:
-    """同一父节点下，两组兄弟节点按标题序列对齐"""
+    """同一父节点下，两组兄弟节点提取标题，只有标题一样才修改新树的key(用旧的key)"""
     if old_nodes is None or new_nodes is None:return    
     old_titles=[]
     new_titles=[]
     for old in old_nodes:old_titles.append(old['title'])
     for new in new_nodes:new_titles.append(new['title'])
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher( None , old_titles,new_titles).get_opcodes():
+        #difflib.SequenceMatcher后面两个参数只接收可迭代的，get_opcodes() 返回一个 列表 ，每项是 5 元组：(tag, i1, i2, j1, j2)
+        # old_titles = ['随机事件和概率', '随机事件', '随机试验与样本空间']
+        # new_titles = ['随机事件和概率', '随机事件的定义', '随机试验与样本空间', '样本空间']
+        # 则返回：
+        # [('equal',   0, 1, 0, 1),
+        # ('replace', 1, 2, 1, 2),
+        # ('equal',   2, 3, 2, 3),
+        # ('insert',  3, 3, 3, 4)]
+
+        
         if tag=='equal':
                 for k in range(i2-i1):
                     new_nodes[j1+k]['node_key']=old_nodes[i1+k]['node_key']
                     _align_level(old_nodes[i1+k]['children'],new_nodes[j1+k]['children'])
 
     return
+
+
+def revise_outline_agent(old_tree: list[dict], instruction: str) -> str:
+    """旧节树 + 修订指令 → 新大纲文本（格式同 outline_agent 输出）"""
+
+    prompt=f"""按照给出的要求修改已经有的目录。{base_prompt}除要求改动的地方，其余原样保留，不许自行扩写。
+        目录开始：{_render_tree(old_tree,0)}目录结束。
+        要求开始：{instruction}要求结束。
+    """
+    
+    return llm.LLM(prompt,"",[])
+    
+
+def _render_tree(nodes: list[dict], depth: int) -> str:
+   #`depth` ＝ 当前这一层是树里的第几层 （0＝章级，1＝分节，2＝小节）。要从这一层开始往下遍历。
+    """节树 → 缩进文本：章级一行"第{n}章 {title}"，其余层只写 title，每层缩进 4 空格"""
+    if nodes == [] or nodes is None:return ""
+    res=""
+    for n,node in enumerate(nodes):#enumerate()返回的是(下标，元素)
+        if depth==0:
+            res+=f"\n第{n+1}章 {node['title']}"
+        else:
+            res+=f"\n"+"    "*depth+f"{node["title"]}"
+        res+=_render_tree(node["children"],depth+1)    
+    return res
+
+
+
+
 
 def writer_agent(section: str, knowledge: list[str]) -> str:
     """大纲一节 + RAG 素材 → 正文初稿，内部调 LLM()"""
