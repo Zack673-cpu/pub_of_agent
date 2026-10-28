@@ -150,9 +150,61 @@ def _render_tree(nodes: list[dict], depth: int) -> str:
         res+=_render_tree(node["children"],depth+1)    
     return res
 
+def summarize_agent(section: str, draft: str) -> str:
+    """节标题 + 本节正文 → 约 150 字摘要卡（概念/定义/伏笔）"""
+    prompt=f"""将以下正文压缩成不超过150字的摘要卡。卡的结构固定成三类槽位（概念/定义/伏笔），要求逐条列出，而不是写一段散文。保留主要信息，包含概念/定义/伏笔。不许为了凑字数加原文没有的内容。不许整段照抄原文，要的是概括。不要输出任何无关的东西。
+        标题开始：{section} 标题结束
+        正文开始：{draft} 正文结束
+    """
+    return llm.LLM(prompt, "", [])
+
+def build_glossary(old_glossary: list[dict], section: str, card: str) -> list[dict]:
+    """已有术语表 + 本节标题 + 本节摘要卡 → 合并后的完整术语表（旧表为准）"""
+    form="[{\"term\": \"\", \"definition\": \"\"}]"
+    prompt=f"""我会给你已有术语表 + 本节标题 + 本节摘要卡。只提取本章出现的、已有术语表里没有的新术语，不要重复已有术语，不要改写已有术语。没有新术语就输出空数组 []。不要输出任何无关的东西。输出格式如下（只是格式展示，真实要你填充内容）：
+            `{form}`
+            已有术语表：{old_glossary}
+            本节标题：{section}
+            本节摘要卡：{card}
+    """
+    for i in range(0,3):
+        res=llm.LLM(prompt, "", [])
+        try:
+          return _merge_glossary(old_glossary, _parse_glossary(res), section)
+        except ValueError:
+            if i !=2:continue
+            raise
 
 
+def _merge_glossary(old_glossary: list[dict], new_items: list[dict], section: str) -> list[dict]:
+    """旧表为准：旧条目原样保留，新术语只在表里没有同名时才追加（first_section 记本节）"""
+    merged=list(old_glossary)
+    seen={item["term"] for item in merged}
+    for item in new_items:
+        if item["term"] in seen:continue
+        seen.add(item["term"])
+        merged.append({"term":item["term"],"definition":item["definition"],"first_section":section})
+    return merged
 
+
+def _parse_glossary(text: str) -> list[dict]:
+    """术语表文本 → [{"term": ..., "definition": ...}]"""
+    _REQUIRED_KEYS = ("term", "definition")
+    text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        r=json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"术语表不是合法 JSON: {e}") from e
+    if not isinstance(r, list):
+        raise ValueError(f"术语表应为 JSON 数组，实际是 {type(r).__name__}")
+    for i, item in enumerate(r):
+        if not isinstance(item, dict):
+            raise ValueError(f"第 {i} 条不是对象，实际是 {type(item).__name__}")
+        missing = [k for k in _REQUIRED_KEYS if k not in item]
+        if missing:
+            raise ValueError(f"第 {i} 条缺少字段: {missing}")
+    return r
+    
 
 def writer_agent(section: str, knowledge: list[str]) -> str:
     """大纲一节 + RAG 素材 → 正文初稿，内部调 LLM()"""
