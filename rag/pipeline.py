@@ -168,43 +168,45 @@ def build_glossary(old_glossary: list[dict], section: str, card: str) -> list[di
             本节摘要卡：{card}
     """
     for i in range(0,3):
-        res=llm.LLM(prompt, "", [])
         try:
-          return _merge_glossary(old_glossary, _parse_glossary(res), section)
-        except ValueError:
+            return _merge_glossary(old_glossary,_parse_glossary(llm.LLM(prompt,"",[])),section)
+        except ValueError as e:
             if i !=2:continue
-            raise
+            else :raise e
 
 
 def _merge_glossary(old_glossary: list[dict], new_items: list[dict], section: str) -> list[dict]:
-    """旧表为准：旧条目原样保留，新术语只在表里没有同名时才追加（first_section 记本节）"""
-    merged=list(old_glossary)
-    seen={item["term"] for item in merged}
-    for item in new_items:
-        if item["term"] in seen:continue
-        seen.add(item["term"])
-        merged.append({"term":item["term"],"definition":item["definition"],"first_section":section})
+    """将新表追加进旧表，旧条目原样保留，新术语只在表里没有同名时才追加（first_section 记本节）"""
+    merged=list(old_glossary) #浅拷贝列表，不改变传入的列表
+    seen={item["term"] for item in merged} #seen是集合set，装不重复的元素`{}` 空大括号是 空字典 ，不是空集合；空集合要写`set()`
+    for t in new_items:
+        if t["term"] in seen:continue
+        seen.add(t["term"])
+        merged.append({"term":t["term"],"definition":t["definition"],"first_section":section})
     return merged
-
 
 def _parse_glossary(text: str) -> list[dict]:
     """术语表文本 → [{"term": ..., "definition": ...}]"""
-    _REQUIRED_KEYS = ("term", "definition")
-    text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    KEY=["term","definition"]
     try:
+        text=text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         r=json.loads(text)
     except json.JSONDecodeError as e:
-        raise ValueError(f"术语表不是合法 JSON: {e}") from e
-    if not isinstance(r, list):
-        raise ValueError(f"术语表应为 JSON 数组，实际是 {type(r).__name__}")
-    for i, item in enumerate(r):
-        if not isinstance(item, dict):
-            raise ValueError(f"第 {i} 条不是对象，实际是 {type(item).__name__}")
-        missing = [k for k in _REQUIRED_KEYS if k not in item]
-        if missing:
-            raise ValueError(f"第 {i} 条缺少字段: {missing}")
-    return r
+        raise ValueError(f"json解析失败:{e}") from e
+    if not isinstance(r,list):
+        raise ValueError(f"文本类型错误,应该为list:{type(r).__name__}")
     
+    for i,item in enumerate(r):
+        if not isinstance(item,dict):
+            raise ValueError(f"第{i}个术语类型错误，应为dict:{type(item).__name__}")
+        add=[j for j in item if j not in KEY]
+        if add:
+            raise ValueError(f"第{i}个术语多了错误字段:{add}")
+        missing=[k for k in KEY if k not in item]
+        if missing:
+            raise ValueError(f"第{i}个术语缺少字段:{missing}")
+        
+    return r
 
 def writer_agent(section: str, knowledge: list[str]) -> str:
     """大纲一节 + RAG 素材 → 正文初稿，内部调 LLM()"""
