@@ -17,6 +17,7 @@ logging.basicConfig(
         logging.FileHandler(Path(__file__).parent/"app.log",encoding="utf-8"), #文件
     ]
 )
+#logging.basicConfig全项目只该调一次 。它配置的是"root logger"（日志体系的总开关)
 
 logger=logging.getLogger(__name__)
 
